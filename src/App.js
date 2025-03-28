@@ -14,8 +14,8 @@ function App({ signOut, user }) {
   const [folderList, setFolderList] = useState([]);
   const [uploadMessage, setUploadMessage] = useState("");
   const [newFolderName, setNewFolderName] = useState("");
-  const [currentPath, setCurrentPath] = useState(users/${user.username}/);
-  const [folderHistory, setFolderHistory] = useState([users/${user.username}/]);
+  const [currentPath, setCurrentPath] = useState(`users/${user.username}/`);
+  const [folderHistory, setFolderHistory] = useState([`users/${user.username}/`]);
   const [searchTerm, setSearchTerm] = useState("");
   const [fileCount, setFileCount] = useState(0);
   const fileInputRef = useRef(null);
@@ -54,7 +54,7 @@ function App({ signOut, user }) {
       if (!files || files.length === 0) return;
       const scrollPosition = window.scrollY;
       for (const file of files) {
-        const fileKey = ${currentPath}${file.name};
+        const fileKey = `${currentPath}${file.name}`;
         await uploadData({
           key: fileKey,
           data: file,
@@ -74,7 +74,7 @@ function App({ signOut, user }) {
 
   const createFolder = async () => {
     if (!newFolderName.trim()) return;
-    const folderKey = ${currentPath}${newFolderName}/;
+    const folderKey = `${currentPath}${newFolderName}/`;
     try {
       const scrollPosition = window.scrollY;
       await uploadData({ key: folderKey, data: "", options: { contentType: "application/x-directory" } });
@@ -99,7 +99,7 @@ function App({ signOut, user }) {
 
   const deleteFolder = async (folder) => {
     try {
-      const folderKey = ${currentPath}${folder};
+      const folderKey = `${currentPath}${folder}`;
       let result = await list({ prefix: folderKey });
       const objectsToDelete = result.items.map(item => item.key);
 
@@ -112,7 +112,7 @@ function App({ signOut, user }) {
         await remove({ key });
       }
 
-      console.log(Se eliminaron ${objectsToDelete.length} objetos.);
+      console.log(`Se eliminaron ${objectsToDelete.length} objetos.`);
       fetchFiles();
     } catch (error) {
       console.error("Error deleting folder:", error);
@@ -140,12 +140,12 @@ function App({ signOut, user }) {
   };
 
   const goToRoot = () => {
-    setCurrentPath(users/${user.username}/);
-    setFolderHistory([users/${user.username}/]);
+    setCurrentPath(`users/${user.username}/`);
+    setFolderHistory([`users/${user.username}/`]);
   };
 
   const navigateToFolder = (folder) => {
-    const newPath = ${currentPath}${folder};
+    const newPath = `${currentPath}${folder}`;
     setCurrentPath(newPath);
     setFolderHistory([...folderHistory, newPath]);
   };
@@ -197,7 +197,7 @@ function App({ signOut, user }) {
           <div className="upload-buttons">
             <input type="file" ref={fileInputRef} multiple onChange={(e) => setFileData([...e.target.files])} />
             <button onClick={() => uploadFiles(fileData)}>Subir archivos</button>
-            {currentPath !== users/${user.username}/ && (
+            {currentPath !== `users/${user.username}/` && (
               <button onClick={goBack}>Volver</button>
             )}
           </div>
@@ -300,5 +300,5 @@ export default withAuthenticator(App, {
     header: 'Confirmar Registro',
     submitButtonText: 'Confirmar',
     backToSignInText: 'Volver a Iniciar Sesión',
-  },
+  },
 });
