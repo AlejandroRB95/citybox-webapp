@@ -98,4 +98,16 @@ p {
   color: #34495e;
 }
 
+.files-header h3 {
+  display: flex;
+  align-items: center;
+  margin: 0;
+}
+
+.file-count {
+  font-size: 0.9em;
+  color: #7f8c8d;
+  font-weight: normal;
+  margin-left: 5px;
+}
 
