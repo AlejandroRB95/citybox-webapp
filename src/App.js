@@ -4,141 +4,301 @@ import { withAuthenticator } from "@aws-amplify/ui-react";
 import "@aws-amplify/ui-react/styles.css";
 import { list, uploadData, getUrl, remove } from "@aws-amplify/storage";
 import awsExports from "./aws-exports";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
+
 Amplify.configure(awsExports);
 
 function App({ signOut, user }) {
-  const [fileData, setFileData] = useState(null);
+  const [fileData, setFileData] = useState([]);
   const [fileList, setFileList] = useState([]);
-  const [originalFileList, setOriginalFileList] = useState([]);
-  const [dragging, setDragging] = useState(false);
-  const [searchTerm, setSearchTerm] = useState("");
+  const [folderList, setFolderList] = useState([]);
   const [uploadMessage, setUploadMessage] = useState("");
-  const dropRef = useRef(null);
+  const [newFolderName, setNewFolderName] = useState("");
+  const [currentPath, setCurrentPath] = useState(users/${user.username}/);
+  const [folderHistory, setFolderHistory] = useState([users/${user.username}/]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [fileCount, setFileCount] = useState(0);
   const fileInputRef = useRef(null);
+  const appRef = useRef(null);
 
-  const userFolder = `users/${user.username}/`;
-
-  const fetchFiles = async () => {
+  const fetchFiles = useCallback(async () => {
     try {
-      const result = await list({ prefix: userFolder });
-      const items = result.items.map(file => ({
-        key: file.key,
-        name: file.key.replace(userFolder, ""),
-        lastModified: file.lastModified,
-        size: file.size,
-      }));
-      setFileList(items);
-      setOriginalFileList(items);
+      const result = await list({ prefix: currentPath });
+      const folders = new Set();
+      const files = [];
+
+      result.items.forEach((file) => {
+        const relativePath = file.key.replace(currentPath, "");
+        if (relativePath.includes("/")) {
+          folders.add(relativePath.split("/")[0] + "/");
+        } else {
+          files.push({
+            key: file.key,
+            name: relativePath,
+            lastModified: new Date(file.lastModified).toLocaleString(),
+            size: (file.size / (1024 * 1024)).toFixed(2),
+          });
+        }
+      });
+
+      setFolderList(Array.from(folders));
+      setFileList(files);
+      setFileCount(files.length);
     } catch (error) {
       console.error("Error fetching file list:", error);
     }
-  };
+  }, [currentPath]);
 
-  const uploadFile = async (file) => {
+  const uploadFiles = async (files) => {
     try {
-      if (!file) return;
-      await uploadData({
-        key: `${userFolder}${file.name}`,
-        data: file,
-        options: { contentType: file.type },
-      });
-      console.log("Upload success");
-      setUploadMessage("Archivo subido exitosamente");
-      setTimeout(() => window.location.reload(), 1000);
+      if (!files || files.length === 0) return;
+      const scrollPosition = window.scrollY;
+      for (const file of files) {
+        const fileKey = ${currentPath}${file.name};
+        await uploadData({
+          key: fileKey,
+          data: file,
+          options: { contentType: file.type },
+        });
+      }
+      setUploadMessage("Archivos subidos exitosamente");
+      setTimeout(() => {
+        fetchFiles();
+        window.scrollTo(0, scrollPosition);
+      }, 1000);
     } catch (error) {
       console.error("Upload failed:", error);
-      setUploadMessage("Error al subir el archivo");
+      setUploadMessage("Error al subir los archivos");
+    }
+  };
+
+  const createFolder = async () => {
+    if (!newFolderName.trim()) return;
+    const folderKey = ${currentPath}${newFolderName}/;
+    try {
+      const scrollPosition = window.scrollY;
+      await uploadData({ key: folderKey, data: "", options: { contentType: "application/x-directory" } });
+      setNewFolderName("");
+      setTimeout(() => {
+        fetchFiles();
+        window.scrollTo(0, scrollPosition);
+      }, 1000);
+    } catch (error) {
+      console.error("Error creating folder:", error);
     }
   };
 
   const deleteFile = async (key) => {
     try {
       await remove({ key });
-      console.log("File deleted successfully");
       fetchFiles();
     } catch (error) {
       console.error("Error deleting file:", error);
     }
   };
 
+  const deleteFolder = async (folder) => {
+    try {
+      const folderKey = ${currentPath}${folder};
+      let result = await list({ prefix: folderKey });
+      const objectsToDelete = result.items.map(item => item.key);
+
+      while (result.nextToken) {
+        result = await list({ prefix: folderKey, nextToken: result.nextToken });
+        objectsToDelete.push(...result.items.map(item => item.key));
+      }
+
+      for (const key of objectsToDelete) {
+        await remove({ key });
+      }
+
+      console.log(Se eliminaron ${objectsToDelete.length} objetos.);
+      fetchFiles();
+    } catch (error) {
+      console.error("Error deleting folder:", error);
+    }
+  };
+
+  const downloadFile = async (key, name) => {
+    try {
+      const url = await getUrl({ key, options: { expiresIn: 300 } });
+      const link = document.createElement("a");
+      link.href = url.url;
+      link.download = name;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (error) {
+      console.error("Error getting file URL:", error);
+    }
+  };
+
+  const goBack = () => {
+    const previousPath = folderHistory[folderHistory.length - 2];
+    setCurrentPath(previousPath);
+    setFolderHistory(folderHistory.slice(0, folderHistory.length - 1));
+  };
+
+  const goToRoot = () => {
+    setCurrentPath(users/${user.username}/);
+    setFolderHistory([users/${user.username}/]);
+  };
+
+  const navigateToFolder = (folder) => {
+    const newPath = ${currentPath}${folder};
+    setCurrentPath(newPath);
+    setFolderHistory([...folderHistory, newPath]);
+  };
+
+  const filteredFiles = fileList.filter(file =>
+    file.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   useEffect(() => {
     fetchFiles();
-  }, [user]);
+  }, [currentPath, fetchFiles]);
+
+  useEffect(() => {
+    setFileCount(filteredFiles.length);
+  }, [filteredFiles]);
 
   return (
-    <div className="App">
-      <button onClick={signOut}>Cerrar sesión</button>
+    <div className="App" ref={appRef}>
       <h1>CITY BOX TECHNOLOGY 📦</h1>
-      <h2>Carpeta de usuario</h2>
-
-      <div
-        ref={dropRef}
-        onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
-        onDragLeave={() => setDragging(false)}
-        onDrop={(e) => {
-          e.preventDefault();
-          setDragging(false);
-          const files = e.dataTransfer.files;
-          if (files.length > 0) uploadFile(files[0]);
-        }}
-        className={`drop-area ${dragging ? "dragging" : ""}`}
-      >
-        {dragging ? "Drop your file here..." : "Arrastra y suelta tus archivos aquí"}
+      
+      <div className="top-buttons">
+        <button onClick={signOut}>Cerrar sesión</button>
+        <button onClick={goToRoot}>Volver a Inicio</button>
       </div>
 
-      <div className="file-upload-container">
-        <input type="file" ref={fileInputRef} onChange={(e) => setFileData(e.target.files[0])} />
-        <button onClick={() => uploadFile(fileData)}>Subir archivo</button>
-      </div>
+      <div className="main-content">
+        <div className="left-column">
+          <input
+            type="text"
+            placeholder="Nombre de la carpeta"
+            value={newFolderName}
+            onChange={(e) => setNewFolderName(e.target.value)}
+          />
+          <button onClick={createFolder}>Crear Carpeta</button>
 
-      {uploadMessage && <p>{uploadMessage}</p>}
-
-      <input
-        type="text"
-        placeholder="Buscar archivos..."
-        value={searchTerm}
-        onChange={(event) => {
-          const term = event.target.value.toLowerCase();
-          setSearchTerm(term);
-          setFileList(term === "" ? originalFileList : originalFileList.filter(file => file.name.toLowerCase().includes(term)));
-        }}
-      />
-
-      <h2>Archivos:</h2>
-      {fileList.length === 0 ? (
-        <p>No se encontraron archivos.</p>
-      ) : (
-        <ul className="file-list">
-          {fileList.map((file, index) => (
-            <>
-              <li key={index} className="file-item">
-                <strong>{file.name}</strong> <br />
-                📅 {new Date(file.lastModified).toLocaleString()} <br />
-                📦 {file.size > 1024 * 1024 ? `${(file.size / (1024 * 1024)).toFixed(2)} MB` : `${(file.size / 1024).toFixed(2)} KB`} <br />
-                <button onClick={async () => {
-                  try {
-                    const url = await getUrl({ key: file.key, options: { expiresIn: 300 } });
-                    const link = document.createElement("a");
-                    link.href = url.url;
-                    link.download = file.name;
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
-                  } catch (error) {
-                    console.error("Error getting file URL:", error);
-                    alert("Error al obtener la URL del archivo. Verifica los permisos del bucket.");
-                  }
-                }}>Descargar</button>
-                <button onClick={() => deleteFile(file.key)}>Eliminar</button>
+          <h3>Carpetas:</h3>
+          
+          <div className="folder-list">
+            {folderList.map((folder, index) => (
+              <li key={index}>
+                <button onClick={() => navigateToFolder(folder)}>📁 {folder}</button>
+                <button onClick={() => deleteFolder(folder)}>❌</button>
               </li>
-              <hr className="file-divider" />
-            </>
-          ))}
-        </ul>
-      )}
+            ))}
+          </div>
+        </div>
+
+        <div className="right-column">
+          <div className="upload-buttons">
+            <input type="file" ref={fileInputRef} multiple onChange={(e) => setFileData([...e.target.files])} />
+            <button onClick={() => uploadFiles(fileData)}>Subir archivos</button>
+            {currentPath !== users/${user.username}/ && (
+              <button onClick={goBack}>Volver</button>
+            )}
+          </div>
+
+          {uploadMessage && <p>{uploadMessage}</p>}
+
+          <div className="search-box">
+            <input
+              type="text"
+              placeholder="Buscar archivos..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+
+          <div className="files-header">
+            <h3>Archivos: <span className="file-count">({fileCount} {fileCount === 1 ? 'archivo' : 'archivos'})</span></h3>
+            <button onClick={fetchFiles} className="reload-button">⟳ Recargar</button>
+          </div>
+          <div className="file-list">
+            {filteredFiles.length === 0 ? (
+              <p>No se encontraron archivos.</p>
+            ) : (
+              <ul>
+                {filteredFiles.map((file, index) => (
+                  <li key={index}>
+                    📄 <strong>{file.name}</strong>
+                    <br />
+                    📅 Última modificación: {file.lastModified}
+                    <br />
+                    📦 Tamaño: {file.size} MB
+                    <br />
+                    <button onClick={() => downloadFile(file.key, file.name)}>Descargar</button>
+                    <button onClick={() => deleteFile(file.key)}>Eliminar</button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="footer">
+        <p>&copy; 2025 City Box Technology 📦. Todos los derechos reservados.</p>
+      </div>
     </div>
   );
 }
-
-export default withAuthenticator(App);
+export default withAuthenticator(App, {
+  signUpAttributes: ["email"],
+  components: {
+    Header() {
+      return <h1 style={{ textAlign: "center", marginBottom: "50px" }}>CITY BOX TECHNOLOGY 📦</h1>;
+    },
+  },
+  loginMechanisms: ['email'],
+  formFields: {
+    signIn: {
+      username: {
+        placeholder: 'Correo Electrónico',
+      },
+      password: {
+        placeholder: 'Contraseña',
+      },
+    },
+    signUp: {
+      username: {
+        placeholder: 'Correo Electrónico',
+      },
+      password: {
+        placeholder: 'Contraseña',
+      },
+      confirm_password: {
+        placeholder: 'Confirmar Contraseña',
+      },
+    },
+    forgotPassword: {
+      username: {
+        placeholder: 'Correo Electrónico',
+      },
+    },
+  },
+  signIn: {
+    header: 'Iniciar Sesión',
+    submitButtonText: 'Iniciar Sesión',
+    forgotPasswordText: '¿Olvidaste tu contraseña?',
+    createAccountText: 'Crear una cuenta',
+  },
+  signUp: {
+    header: 'Crear Cuenta.',
+    submitButtonText: 'Registrarse',
+    signInText: '¿Ya tienes una cuenta? Iniciar Sesión',
+  },
+  resetPassword: {
+    header: 'Restablecer Contraseña',
+    submitButtonText: 'Enviar Código',
+    backToSignInText: 'Volver a Iniciar Sesión',
+  },
+  confirmSignUp: {
+    header: 'Confirmar Registro',
+    submitButtonText: 'Confirmar',
+    backToSignInText: 'Volver a Iniciar Sesión',
+  },
+});
