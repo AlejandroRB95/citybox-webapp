@@ -219,3 +219,89 @@ input[type="text"] {
   font-weight: normal;
   margin-left: 5px;
 }
+
+/* Agrega esto a tu archivo CSS */
+.folder-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.folder-list li button:first-child {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: left;
+  padding-right: 10px;
+}
+
+.folder-list li button:last-child {
+  flex-shrink: 0;
+}
+
+/* Agrega estos estilos al final de tu archivo CSS */
+.error-input {
+  border: 2px solid #e74c3c !important;
+}
+
+.error-message {
+  color: #e74c3c;
+  margin-top: -8px;
+  margin-bottom: 10px;
+  font-size: 0.9em;
+}
+
+.folder-list li button:first-child:hover {
+  overflow: visible;
+  white-space: normal;
+  text-overflow: clip;
+  z-index: 1;
+  background-color: #3172b4;
+}
+
+.folder-create-container {
+  position: relative;
+  margin-bottom: 15px;
+}
+
+.error-message {
+  position: absolute;
+  bottom: -20px;
+  left: 0;
+  color: #e74c3c;
+  font-size: 0.8em;
+  margin: 0;
+  padding: 2px 0;
+}
+
+.error-input {
+  border: 2px solid #e74c3c !important;
+  margin-bottom: 25px; /* Espacio extra para el mensaje */
+}
+
+/* Agrega estos estilos al archivo CSS */
+.search-box {
+  margin-bottom: 15px;
+}
+
+.folder-create-container {
+  position: relative;
+  margin-bottom: 25px;
+}
+
+.error-message {
+  position: absolute;
+  bottom: -20px;
+  left: 0;
+  color: #e74c3c;
+  font-size: 0.8em;
+  margin: 0;
+  padding: 2px 0;
+}
+
+.error-input {
+  border: 2px solid #e74c3c !important;
+}
+/* El resto del CSS permanece igual */
