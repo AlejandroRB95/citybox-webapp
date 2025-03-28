@@ -17,7 +17,9 @@ function App({ signOut, user }) {
   const [currentPath, setCurrentPath] = useState(`users/${user.username}/`);
   const [folderHistory, setFolderHistory] = useState([`users/${user.username}/`]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [folderSearchTerm, setFolderSearchTerm] = useState("");
   const [fileCount, setFileCount] = useState(0);
+  const [folderError, setFolderError] = useState(false);
   const fileInputRef = useRef(null);
   const appRef = useRef(null);
 
@@ -63,28 +65,40 @@ function App({ signOut, user }) {
       }
       setUploadMessage("Archivos subidos exitosamente");
       setTimeout(() => {
+        setUploadMessage("");
         fetchFiles();
         window.scrollTo(0, scrollPosition);
-      }, 1000);
+      }, 3000);
     } catch (error) {
       console.error("Upload failed:", error);
       setUploadMessage("Error al subir los archivos");
+      setTimeout(() => setUploadMessage(""), 3000);
     }
   };
 
   const createFolder = async () => {
-    if (!newFolderName.trim()) return;
+    if (!newFolderName.trim()) {
+      setFolderError(true);
+      setUploadMessage("");
+      return;
+    }
+    
+    setFolderError(false);
     const folderKey = `${currentPath}${newFolderName}/`;
     try {
       const scrollPosition = window.scrollY;
       await uploadData({ key: folderKey, data: "", options: { contentType: "application/x-directory" } });
       setNewFolderName("");
+      setUploadMessage("Carpeta creada exitosamente");
       setTimeout(() => {
+        setUploadMessage("");
         fetchFiles();
         window.scrollTo(0, scrollPosition);
-      }, 1000);
+      }, 3000);
     } catch (error) {
       console.error("Error creating folder:", error);
+      setUploadMessage("Error al crear la carpeta");
+      setTimeout(() => setUploadMessage(""), 3000);
     }
   };
 
@@ -154,6 +168,10 @@ function App({ signOut, user }) {
     file.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const filteredFolders = folderList.filter(folder =>
+    folder.toLowerCase().includes(folderSearchTerm.toLowerCase())
+  );
+
   useEffect(() => {
     fetchFiles();
   }, [currentPath, fetchFiles]);
@@ -177,19 +195,44 @@ function App({ signOut, user }) {
             type="text"
             placeholder="Nombre de la carpeta"
             value={newFolderName}
-            onChange={(e) => setNewFolderName(e.target.value)}
+            onChange={(e) => {
+              setNewFolderName(e.target.value);
+              setFolderError(false);
+            }}
+            className={folderError ? "error-input" : ""}
           />
-          <button onClick={createFolder}>Crear Carpeta</button>
+          <div className="folder-create-container">
+            <button onClick={createFolder}>Crear Carpeta</button>
+            {folderError && <p className="error-message">Por favor ingrese un nombre para la carpeta</p>}
+          </div>
 
-          <h3>Carpetas:</h3>
+          <div className="search-box">
+            <input
+              type="text"
+              placeholder="Buscar carpetas..."
+              value={folderSearchTerm}
+              onChange={(e) => setFolderSearchTerm(e.target.value)}
+            />
+          </div>
+
+          <h3>Carpetas: <span className="file-count">({filteredFolders.length} {filteredFolders.length === 1 ? 'carpeta' : 'carpetas'})</span></h3>
           
           <div className="folder-list">
-            {folderList.map((folder, index) => (
-              <li key={index}>
-                <button onClick={() => navigateToFolder(folder)}>📁 {folder}</button>
-                <button onClick={() => deleteFolder(folder)}>❌</button>
-              </li>
-            ))}
+            {filteredFolders.length === 0 ? (
+              <p>No se encontraron carpetas.</p>
+            ) : (
+              filteredFolders.map((folder, index) => (
+                <li key={index}>
+                  <button 
+                    onClick={() => navigateToFolder(folder)}
+                    title={folder.replace('/', '')}
+                  >
+                    📁 {folder.replace('/', '')}
+                  </button>
+                  <button onClick={() => deleteFolder(folder)}>❌</button>
+                </li>
+              ))
+            )}
           </div>
         </div>
 
@@ -202,7 +245,7 @@ function App({ signOut, user }) {
             )}
           </div>
 
-          {uploadMessage && <p>{uploadMessage}</p>}
+          {uploadMessage && <p className={uploadMessage.includes("Error") ? "error-message" : ""}>{uploadMessage}</p>}
 
           <div className="search-box">
             <input
