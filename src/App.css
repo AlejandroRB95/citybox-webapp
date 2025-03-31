@@ -205,7 +205,6 @@ input[type="file"]:focus {
   box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
 }
 
-
 /* BOTONES*/
 button {
   background-color: #2a79b9;
@@ -389,6 +388,46 @@ li button {
   background: #eb2a2a;
 }
 
+/* Estilos para móviles */
+.mobile-sidebar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 80%;
+  height: 100%;
+  background-color: #fff;
+  z-index: 100;
+  box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+  transform: translateX(-100%);
+  transition: transform 0.3s ease;
+  overflow-y: auto;
+}
+
+.mobile-sidebar.open {
+  transform: translateX(0);
+}
+
+.sidebar-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0,0,0,0.5);
+  z-index: 99;
+}
+
+.sidebar-toggle {
+  display: none;
+}
+
+.file-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
 @media (max-width: 768px) {
   .App {
     padding: 15px;
@@ -427,9 +466,22 @@ li button {
   .upload-buttons {
     flex-direction: column;
   }
+
+  .sidebar-toggle {
+    display: block;
+  }
+
+  .file-list li {
+    padding: 1rem;
+  }
+
+  .file-actions button {
+    padding: 0.5rem;
+    font-size: 0.9rem;
+  }
 }
 
-/* MODIFICACIÓN ESPECÍFICA PARA PANTALLAS DE TRANSICIÓN (SOLO ESTA PARTE FUE CAMBIADA) */
+/* Estilos para pantallas de transición */
 .transition-screen {
   display: flex;
   flex-direction: column;
@@ -521,4 +573,88 @@ li button {
   100% { transform: scale(1); }
 }
 
-/* Fin de la modificación específica */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.upload-progress-container {
+  width: calc(100% - 2rem);
+  margin: 0 1rem;
+  background-color: #f3f3f3;
+  border-radius: 5px;
+  position: relative;
+  height: 25px;
+}
+
+.upload-progress-bar {
+  height: 100%;
+  border-radius: 5px;
+  background-color: #4CAF50;
+  transition: width 0.3s ease;
+}
+
+.upload-progress-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: #333;
+  font-weight: bold;
+}
+
+.success-animation {
+  display: flex;
+  justify-content: center;
+  margin: 10px 0;
+}
+
+.checkmark {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  display: block;
+  stroke-width: 2;
+  stroke: #4CAF50;
+  stroke-miterlimit: 10;
+  box-shadow: inset 0px 0px 0px #4CAF50;
+  animation: fill .4s ease-in-out .4s forwards, scale .3s ease-in-out .9s both;
+}
+
+.checkmark__circle {
+  stroke-dasharray: 166;
+  stroke-dashoffset: 166;
+  stroke-width: 2;
+  stroke-miterlimit: 10;
+  stroke: #4CAF50;
+  fill: none;
+  animation: stroke .6s cubic-bezier(0.65, 0, 0.45, 1) forwards;
+}
+
+.checkmark__check {
+  transform-origin: 50% 50%;
+  stroke-dasharray: 48;
+  stroke-dashoffset: 48;
+  animation: stroke .3s cubic-bezier(0.65, 0, 0.45, 1) .8s forwards;
+}
+
+@keyframes stroke {
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes scale {
+  0%, 100% {
+    transform: none;
+  }
+  50% {
+    transform: scale3d(1.1, 1.1, 1);
+  }
+}
+
+@keyframes fill {
+  100% {
+    box-shadow: inset 0px 0px 0px 30px #fff;
+  }
+}
